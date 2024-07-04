@@ -5,6 +5,7 @@ go 1.22.4
 require (
 	github.com/golangci/golangci-lint v1.59.1
 	github.com/matryer/is v1.4.1
+	github.com/neilotoole/slogt v1.1.0
 	github.com/twmb/franz-go/pkg/sr v1.0.0
 	github.com/twmb/go-cache v1.2.1
 )
@@ -114,7 +115,6 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moricho/tparallel v0.3.1 // indirect
 	github.com/nakabonne/nestif v0.3.1 // indirect
-	github.com/neilotoole/slogt v1.1.0 // indirect
 	github.com/nishanths/exhaustive v0.12.0 // indirect
 	github.com/nishanths/predeclared v0.2.2 // indirect
 	github.com/nunnatsa/ginkgolinter v0.16.2 // indirect

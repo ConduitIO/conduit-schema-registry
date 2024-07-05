@@ -2,6 +2,14 @@
 test:
 	go test $(GOTEST_FLAGS) -race ./...
 
+.PHONY: test-integration
+test-integration:
+	# run required docker containers, execute integration tests, stop containers after tests
+	docker compose -f test/docker-compose-confluent.yml up --quiet-pull -d --wait
+	go test $(GOTEST_FLAGS) -race --tags=integration ./...; ret=$$?; \
+		docker compose -f test/docker-compose-confluent.yml down; \
+		exit $$ret
+
 .PHONY: lint
 lint:
 	golangci-lint run

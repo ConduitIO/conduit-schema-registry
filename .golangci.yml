@@ -40,6 +40,7 @@ issues:
         - dupl
         - maintidx
         - wrapcheck
+        - godot
 
 linters:
   # please, do not use `enable-all`: it's deprecated and will be removed soon.
@@ -115,7 +116,7 @@ linters:
     - stylecheck
     - tenv
     - testableexamples
-    - thelper
+    # - thelper
     - unconvert
     # - unparam
     - unused

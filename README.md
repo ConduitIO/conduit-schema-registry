@@ -1,8 +1,12 @@
 # Conduit Schema Registry
 
+[![License](https://img.shields.io/github/license/ConduitIO/conduit-schema-registry)](https://github.com/ConduitIO/conduit/blob/main/LICENSE)
+[![Test](https://github.com/ConduitIO/conduit-schema-registry/actions/workflows/test.yml/badge.svg)](https://github.com/ConduitIO/conduit-schema-registry/actions/workflows/test.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ConduitIO/conduit-schema-registry)](https://goreportcard.com/report/github.com/ConduitIO/conduit-schema-registry)
+
 Conduit Schema Registry is a service that stores and manages schemas. It is used
-internally in Conduit to store the schemas of records that are produced and
-consumed by connectors.
+internally in [Conduit](https://github.com/ConduitIO/conduit) to store the schemas
+of records that are produced and consumed by connectors.
 
 The schema registry can either be embedded in a Go application or run as a
 standalone service exposing a REST API.

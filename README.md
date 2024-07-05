@@ -1,6 +1,6 @@
 # Conduit Schema Registry
 
-[![License](https://img.shields.io/github/license/ConduitIO/conduit-schema-registry)](https://github.com/ConduitIO/conduit/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/ConduitIO/conduit-schema-registry)](https://github.com/ConduitIO/conduit-schema-registry/blob/main/LICENSE)
 [![Test](https://github.com/ConduitIO/conduit-schema-registry/actions/workflows/test.yml/badge.svg)](https://github.com/ConduitIO/conduit-schema-registry/actions/workflows/test.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ConduitIO/conduit-schema-registry)](https://goreportcard.com/report/github.com/ConduitIO/conduit-schema-registry)
 

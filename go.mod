@@ -7,7 +7,6 @@ require (
 	github.com/matryer/is v1.4.1
 	github.com/neilotoole/slogt v1.1.0
 	github.com/twmb/franz-go/pkg/sr v1.0.0
-	github.com/twmb/go-cache v1.2.1
 )
 
 require (

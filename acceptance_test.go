@@ -128,32 +128,32 @@ func (a acceptanceTest) TestSchemaByID(t *testing.T) {
 
 // GET /schemas/ids/{id}/schema
 func (a acceptanceTest) TestSchemaBytesByID(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /schemas/types
 func (a acceptanceTest) TestSchemaTypes(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /schemas/ids/{id}/versions
 func (a acceptanceTest) TestSchemaVersionsByID(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /subjects
 func (a acceptanceTest) TestSubjects(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /subjects/{subject}/versions
 func (a acceptanceTest) TestSchemaVersionsBySubject(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // DELETE /subjects/{subject}
 func (a acceptanceTest) TestDeleteSchemaSubject(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /subjects/{subject}/versions/{version}
@@ -213,147 +213,147 @@ func (a acceptanceTest) TestSchemaBySubjectVersion(t *testing.T) {
 
 // GET /subjects/{subject}/versions/{version}/schema
 func (a acceptanceTest) TestSchemaBytesBySubjectVersion(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // POST /subjects/{subject}/versions
 func (a acceptanceTest) TestCreateSchema(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // POST /subjects/{subject}
 func (a acceptanceTest) TestCheckSchema(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // DELETE /subjects/{subject}/versions/{version}
 func (a acceptanceTest) TestDeleteSchemaSubjectVersion(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /subjects/{subject}/versions/{version}/referencedby
 func (a acceptanceTest) TestSchemaReferencedBy(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /mode
 func (a acceptanceTest) TestGetMode(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // PUT /mode
 func (a acceptanceTest) TestUpdateMode(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /mode/{subject}
 func (a acceptanceTest) TestGetSubjectMode(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // PUT /mode/{subject}
 func (a acceptanceTest) TestUpdateSubjectMode(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // DELETE /mode/{subject}
 func (a acceptanceTest) TestDeleteSubjectMode(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // POST /compatibility/subjects/{subject}/versions/{version}
 func (a acceptanceTest) TestCheckCompatibility(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // POST /compatibility/subjects/{subject}/versions
 func (a acceptanceTest) TestCheckCompatibilityAll(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // PUT /config
 func (a acceptanceTest) TestUpdateConfig(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /config
 func (a acceptanceTest) TestGetConfig(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // PUT /config/{subject}
 func (a acceptanceTest) TestUpdateSubjectConfig(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /config/{subject}
 func (a acceptanceTest) TestGetSubjectConfig(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // DELETE /config/{subject}
 func (a acceptanceTest) TestDeleteSubjectConfig(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /exporters
 func (a acceptanceTest) TestGetExporters(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /contexts
 func (a acceptanceTest) TestGetContexts(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // POST /exporters
 func (a acceptanceTest) TestCreateExporter(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // PUT /exporters/{name}
 func (a acceptanceTest) TestUpdateExporter(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // PUT /exporters/{name}/config
 func (a acceptanceTest) TestUpdateExporterConfig(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /exporters/{name}
 func (a acceptanceTest) TestGetExporter(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /exporters/{name}/status
 func (a acceptanceTest) TestGetExporterStatus(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // GET /exporters/{name}/config
 func (a acceptanceTest) TestGetExporterConfig(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // PUT /exporters/{name}/pause
 func (a acceptanceTest) TestPauseExporter(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // PUT /exporters/{name}/reset
 func (a acceptanceTest) TestResetExporter(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // PUT /exporters/{name}/resume
 func (a acceptanceTest) TestResumeExporter(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // DELETE /exporters/{name}
 func (a acceptanceTest) TestDeleteExporter(t *testing.T) {
-	t.Skip("not implemented")
+	t.Skip("not implemented") // TODO
 }
 
 // roundTripRecorder wraps a http.RoundTripper and records all requests and

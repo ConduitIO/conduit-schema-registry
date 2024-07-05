@@ -15,6 +15,7 @@
 package schemaregistry
 
 import (
+	"context"
 	"errors"
 	"sync"
 
@@ -38,7 +39,7 @@ func NewSchemaRegistry() *SchemaRegistry {
 	}
 }
 
-func (r *SchemaRegistry) CreateSchema(subject string, schema sr.Schema) (sr.SubjectSchema, error) {
+func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schema sr.Schema) (sr.SubjectSchema, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
@@ -74,21 +75,21 @@ func (r *SchemaRegistry) CreateSchema(subject string, schema sr.Schema) (sr.Subj
 	return ss, nil
 }
 
-func (r *SchemaRegistry) SchemaByID(id int) (sr.Schema, error) {
+func (r *SchemaRegistry) SchemaByID(ctx context.Context, id int) (sr.Schema, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
 	return r.findOneByID(id)
 }
 
-func (r *SchemaRegistry) SchemaBySubjectVersion(subject string, version int) (sr.SubjectSchema, error) {
+func (r *SchemaRegistry) SchemaBySubjectVersion(ctx context.Context, subject string, version int) (sr.SubjectSchema, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
 	return r.findBySubjectVersion(subject, version)
 }
 
-func (r *SchemaRegistry) SubjectVersionsByID(id int) ([]sr.SubjectSchema, error) {
+func (r *SchemaRegistry) SubjectVersionsByID(ctx context.Context, id int) ([]sr.SubjectSchema, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
@@ -99,7 +100,7 @@ func (r *SchemaRegistry) SubjectVersionsByID(id int) ([]sr.SubjectSchema, error)
 	return ss, nil
 }
 
-func (r *SchemaRegistry) SchemaVersionsBySubject(subject string) ([]sr.SubjectSchema, error) {
+func (r *SchemaRegistry) SchemaVersionsBySubject(ctx context.Context, subject string) ([]sr.SubjectSchema, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 

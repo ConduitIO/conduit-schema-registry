@@ -94,7 +94,7 @@ func (srv *Server) RegisterHandlers(mux *http.ServeMux) {
 // Get the schema string identified by the input ID.
 func (srv *Server) schemaByID(w http.ResponseWriter, r *http.Request) {
 	id := srv.schemaID(r)
-	s, err := srv.registry.SchemaByID(id)
+	s, err := srv.registry.SchemaByID(r.Context(), id)
 	if err != nil {
 		srv.error(w, err)
 		return
@@ -106,7 +106,7 @@ func (srv *Server) schemaByID(w http.ResponseWriter, r *http.Request) {
 // Retrieves only the schema identified by the input ID.
 func (srv *Server) schemaBytesByID(w http.ResponseWriter, r *http.Request) {
 	id := srv.schemaID(r)
-	s, err := srv.registry.SchemaByID(id)
+	s, err := srv.registry.SchemaByID(r.Context(), id)
 	if err != nil {
 		srv.error(w, err)
 		return
@@ -124,7 +124,7 @@ func (srv *Server) schemaTypes(w http.ResponseWriter, _ *http.Request) {
 // Get the subject-version pairs identified by the input ID.
 func (srv *Server) schemaVersionsByID(w http.ResponseWriter, r *http.Request) {
 	id := srv.schemaID(r)
-	ss, err := srv.registry.SubjectVersionsByID(id)
+	ss, err := srv.registry.SubjectVersionsByID(r.Context(), id)
 	if err != nil {
 		srv.error(w, err)
 		return
@@ -144,7 +144,7 @@ func (srv *Server) subjects(w http.ResponseWriter, _ *http.Request) {
 // Get a list of versions registered under the specified subject.
 func (srv *Server) schemaVersionsBySubject(w http.ResponseWriter, r *http.Request) {
 	subject := srv.subject(r)
-	ss, err := srv.registry.SchemaVersionsBySubject(subject)
+	ss, err := srv.registry.SchemaVersionsBySubject(r.Context(), subject)
 	if err != nil {
 		srv.error(w, err)
 		return
@@ -163,7 +163,7 @@ func (srv *Server) deleteSchemaSubject(w http.ResponseWriter, _ *http.Request) {
 func (srv *Server) schemaBySubjectVersion(w http.ResponseWriter, r *http.Request) {
 	subject := srv.subject(r)
 	version := srv.version(r)
-	ss, err := srv.registry.SchemaBySubjectVersion(subject, version)
+	ss, err := srv.registry.SchemaBySubjectVersion(r.Context(), subject, version)
 	if err != nil {
 		srv.error(w, err)
 		return
@@ -176,7 +176,7 @@ func (srv *Server) schemaBySubjectVersion(w http.ResponseWriter, r *http.Request
 func (srv *Server) schemaBytesBySubjectVersion(w http.ResponseWriter, r *http.Request) {
 	subject := srv.subject(r)
 	version := srv.version(r)
-	ss, err := srv.registry.SchemaBySubjectVersion(subject, version)
+	ss, err := srv.registry.SchemaBySubjectVersion(r.Context(), subject, version)
 	if err != nil {
 		srv.error(w, err)
 		return
@@ -196,7 +196,7 @@ func (srv *Server) createSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ss, err := srv.registry.CreateSchema(subject, s)
+	ss, err := srv.registry.CreateSchema(r.Context(), subject, s)
 	if err != nil {
 		srv.error(w, err)
 		return

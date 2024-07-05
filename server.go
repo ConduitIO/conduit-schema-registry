@@ -459,7 +459,6 @@ func (srv *Server) version(r *http.Request) int {
 	return i
 }
 
-//nolint:unparam // it will be used in the future
 func (srv *Server) exporterName(r *http.Request) string {
 	return r.PathValue("name")
 }

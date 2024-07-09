@@ -428,7 +428,7 @@ func (srv *Server) json(w http.ResponseWriter, v any) {
 }
 
 func (srv *Server) error(w http.ResponseWriter, err error) {
-	var e *Error
+	var e *sr.ResponseError
 	if errors.As(err, &e) {
 		srv.errorWithCode(w, e)
 		return
@@ -436,8 +436,8 @@ func (srv *Server) error(w http.ResponseWriter, err error) {
 	srv.errorWithCode(w, ErrErrorInTheBackendDataStore)
 }
 
-func (srv *Server) errorWithCode(w http.ResponseWriter, err *Error) {
-	w.WriteHeader(err.StatusCode())
+func (srv *Server) errorWithCode(w http.ResponseWriter, err *sr.ResponseError) {
+	w.WriteHeader(StatusCode(err.ErrorCode))
 	srv.json(w, err)
 }
 

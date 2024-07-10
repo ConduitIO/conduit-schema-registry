@@ -76,7 +76,7 @@ func (s *schemaStore) Delete(ctx context.Context, id int) error {
 }
 
 // store is namespaced, meaning that keys all have the same prefix.
-// You can pass this a blank string to get the prefix key for all instances.
+// You can pass this a blank string to get the prefix key for all schemas.
 func (*schemaStore) toKey(id int) string {
 	return schemaStoreKeyPrefix + strconv.Itoa(id)
 }
@@ -90,18 +90,18 @@ func (*schemaStore) toKey(id int) string {
 // 	return id
 // }
 
-// encode an instance from *Instance to []byte.
-func (*schemaStore) encode(instance sr.Schema) ([]byte, error) {
+// encode from sr.Schema to []byte.
+func (*schemaStore) encode(s sr.Schema) ([]byte, error) {
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
-	err := enc.Encode(instance)
+	err := enc.Encode(s)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode schema: %w", err)
 	}
 	return b.Bytes(), nil
 }
 
-// decode an instance from []byte to *Instance.
+// decode from []byte to sr.Schema.
 func (s *schemaStore) decode(raw []byte) (sr.Schema, error) {
 	var out sr.Schema
 	r := bytes.NewReader(raw)
@@ -170,7 +170,7 @@ func (s *subjectSchemaStore) Delete(ctx context.Context, subject string, version
 }
 
 // store is namespaced, meaning that keys all have the same prefix.
-// You can pass this a blank string to get the prefix key for all instances.
+// You can pass this a blank string to get the prefix key for all subject schemas.
 func (*subjectSchemaStore) toKey(subject string, version int) string {
 	return subjectSchemaStoreKeyPrefix + subject + ":" + strconv.Itoa(version)
 }
@@ -189,18 +189,18 @@ func (*subjectSchemaStore) toKey(subject string, version int) string {
 // 	return subject, version
 // }
 
-// encode an instance from *Instance to []byte.
-func (*subjectSchemaStore) encode(instance sr.SubjectSchema) ([]byte, error) {
+// encode from sr.SubjectSchema to []byte.
+func (*subjectSchemaStore) encode(ss sr.SubjectSchema) ([]byte, error) {
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
-	err := enc.Encode(instance)
+	err := enc.Encode(ss)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode subject schema: %w", err)
 	}
 	return b.Bytes(), nil
 }
 
-// decode an instance from []byte to *Instance.
+// decode from []byte to sr.SubjectSchema.
 func (s *subjectSchemaStore) decode(raw []byte) (sr.SubjectSchema, error) {
 	var out sr.SubjectSchema
 	r := bytes.NewReader(raw)

@@ -19,6 +19,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/conduitio/conduit-commons/database/inmemory"
 	"github.com/neilotoole/slogt"
 )
 
@@ -26,8 +27,13 @@ func TestAcceptance_Server(t *testing.T) {
 	// Run tests against an in-memory schema service.
 	logger := slogt.New(t)
 
+	reg, err := NewSchemaRegistry(&inmemory.DB{})
+	if err != nil {
+		t.Fatalf("failed to create schema registry: %v", err)
+	}
+
 	mux := http.NewServeMux()
-	schemaSrv := NewServer(logger, NewSchemaRegistry())
+	schemaSrv := NewServer(logger, reg)
 	schemaSrv.RegisterHandlers(mux)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)

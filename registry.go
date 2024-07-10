@@ -17,44 +17,66 @@ package schemaregistry
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
-	"github.com/conduitio/conduit-schema-registry/internal"
+	"github.com/conduitio/conduit-commons/database"
+	"github.com/conduitio/conduit-commons/rabin"
 	"github.com/twmb/franz-go/pkg/sr"
 )
 
 // SchemaRegistry is a schema registry that stores schemas in memory.
 type SchemaRegistry struct {
-	schemas            []sr.SubjectSchema
-	fingerprintIDCache map[uint64]int
-	idSequence         int
+	schemaStore        *schemaStore
+	subjectSchemaStore *subjectSchemaStore
+
+	fingerprintIDCache   map[uint64]int
+	idSubjectSchemaCache map[int][]sr.SubjectSchema // subject schema doesn't contain actual schema
+	subjectVersionCache  map[string][]int
+
+	// TODO persist in store
+	idSequence int
 
 	m sync.Mutex
 }
 
-func NewSchemaRegistry() *SchemaRegistry {
-	return &SchemaRegistry{
-		schemas:            make([]sr.SubjectSchema, 0),
-		fingerprintIDCache: make(map[uint64]int),
+func NewSchemaRegistry(db database.DB) (*SchemaRegistry, error) {
+	r := &SchemaRegistry{
+		schemaStore:        newSchemaStore(db),
+		subjectSchemaStore: newSubjectSchemaStore(db),
+
+		fingerprintIDCache:   make(map[uint64]int),
+		idSubjectSchemaCache: make(map[int][]sr.SubjectSchema),
+		subjectVersionCache:  make(map[string][]int),
 	}
+	// TODO init fingerprint cache
+	return r, nil
 }
 
 func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schema sr.Schema) (sr.SubjectSchema, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	fp := internal.Rabin([]byte(schema.Schema))
+	fp := rabin.Bytes([]byte(schema.Schema))
 	id, ok := r.fingerprintIDCache[fp]
-	if ok {
-		// schema exists, see if subject matches
-		ss, err := r.findBySubjectID(subject, id)
-		if err == nil {
-			// schema exists for this subject, return it
-			return ss, nil
+	if ok { //nolint:nestif // refactor this at some point
+		// schema exists, see if subject exists for this id
+		var ss sr.SubjectSchema
+		for _, s := range r.idSubjectSchemaCache[id] {
+			if s.Subject == subject && s.Version > ss.Version {
+				ss = s
+			}
 		}
-		if !errors.Is(err, ErrSchemaNotFound) {
-			// unexpected error
-			return sr.SubjectSchema{}, err
+		if ss.ID != 0 {
+			// schema exists for this subject, store schema in case metadata
+			// changed and return it
+			err := r.schemaStore.Set(ctx, ss.ID, ss.Schema)
+			if err != nil {
+				return sr.SubjectSchema{}, err
+			}
+
+			ss.Schema = schema
+			return ss, nil
 		}
 	} else {
 		// schema does not exist yet
@@ -69,8 +91,22 @@ func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schem
 		Schema:  schema,
 	}
 
-	r.schemas = append(r.schemas, ss)
+	// TODO create transaction if needed
+	err := r.schemaStore.Set(ctx, ss.ID, ss.Schema)
+	if err != nil {
+		return sr.SubjectSchema{}, err
+	}
+	err = r.subjectSchemaStore.Set(ctx, ss.Subject, ss.Version, ss)
+	if err != nil {
+		return sr.SubjectSchema{}, err
+	}
 	r.fingerprintIDCache[fp] = id
+	r.idSubjectSchemaCache[id] = append(r.idSubjectSchemaCache[id], sr.SubjectSchema{
+		Subject: subject,
+		Version: version,
+		ID:      id,
+	})
+	r.subjectVersionCache[subject] = append(r.subjectVersionCache[subject], version)
 
 	return ss, nil
 }
@@ -79,36 +115,99 @@ func (r *SchemaRegistry) SchemaByID(ctx context.Context, id int) (sr.Schema, err
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	return r.findOneByID(id)
+	s, err := r.schemaStore.Get(ctx, id)
+	if err != nil {
+		if errors.Is(err, database.ErrKeyNotExist) {
+			return sr.Schema{}, ErrSchemaNotFound
+		}
+		return sr.Schema{}, fmt.Errorf("failed to get schema from store: %w", err)
+	}
+
+	return s, nil
 }
 
 func (r *SchemaRegistry) SchemaBySubjectVersion(ctx context.Context, subject string, version int) (sr.SubjectSchema, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	return r.findBySubjectVersion(subject, version)
+	ss, err := r.subjectSchemaStore.Get(ctx, subject, version)
+	if err != nil {
+		if errors.Is(err, database.ErrKeyNotExist) {
+			return sr.SubjectSchema{}, ErrSubjectNotFound
+		}
+		return sr.SubjectSchema{}, fmt.Errorf("failed to get subject schema from store: %w", err)
+	}
+
+	ss.Schema, err = r.schemaStore.Get(ctx, ss.ID)
+	if err != nil {
+		if errors.Is(err, database.ErrKeyNotExist) {
+			// schema should exist if subject schema exists
+			return sr.SubjectSchema{}, ErrSchemaNotFound
+		}
+		return sr.SubjectSchema{}, fmt.Errorf("failed to get schema from store: %w", err)
+	}
+
+	return ss, nil
 }
 
 func (r *SchemaRegistry) SubjectVersionsByID(ctx context.Context, id int) ([]sr.SubjectSchema, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	ss := r.findAllByID(id)
-	if len(ss) == 0 {
-		return nil, ErrSchemaNotFound
+	s, err := r.schemaStore.Get(ctx, id)
+	if err != nil {
+		if errors.Is(err, database.ErrKeyNotExist) {
+			return nil, ErrSchemaNotFound
+		}
+		return nil, fmt.Errorf("failed to get schema from store: %w", err)
 	}
-	return ss, nil
+
+	sss, ok := r.idSubjectSchemaCache[id]
+	if !ok {
+		// schema exists but no subjects, should not happen
+		return nil, ErrSubjectNotFound
+	}
+
+	// update schema for all subject schemas, they don't contain the actual schema
+	out := make([]sr.SubjectSchema, len(sss))
+	for i, ss := range sss {
+		out[i] = ss
+		out[i].Schema = s
+	}
+
+	return sss, nil
 }
 
 func (r *SchemaRegistry) SchemaVersionsBySubject(ctx context.Context, subject string) ([]sr.SubjectSchema, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	ss := r.findBySubject(subject)
-	if len(ss) == 0 {
-		return nil, ErrSubjectNotFound
+	sss := make([]sr.SubjectSchema, len(r.subjectVersionCache[subject]))
+	tmpSchemaCache := map[int]sr.Schema{}
+	// TODO this could be optimized to make a single round trip to the store
+	for i, version := range r.subjectVersionCache[subject] {
+		ss, err := r.subjectSchemaStore.Get(ctx, subject, version)
+		if err != nil {
+			if errors.Is(err, database.ErrKeyNotExist) {
+				return nil, ErrSubjectNotFound
+			}
+			return nil, fmt.Errorf("failed to get subject schema from store: %w", err)
+		}
+		if tmpSchemaCache[ss.ID].Schema == "" {
+			tmpSchemaCache[ss.ID], err = r.schemaStore.Get(ctx, ss.ID)
+			if err != nil {
+				if errors.Is(err, database.ErrKeyNotExist) {
+					// schema should exist if subject schema exists
+					return nil, ErrSchemaNotFound
+				}
+				return nil, fmt.Errorf("failed to get schema from store: %w", err)
+			}
+		}
+		ss.Schema = tmpSchemaCache[ss.ID]
+		sss[i] = ss
 	}
-	return ss, nil
+
+	return sss, nil
 }
 
 func (r *SchemaRegistry) nextID() int {
@@ -117,52 +216,9 @@ func (r *SchemaRegistry) nextID() int {
 }
 
 func (r *SchemaRegistry) nextVersion(subject string) int {
-	return len(r.findBySubject(subject)) + 1
-}
-
-func (r *SchemaRegistry) findBySubject(subject string) []sr.SubjectSchema {
-	var sss []sr.SubjectSchema
-	for _, ss := range r.schemas {
-		if ss.Subject == subject {
-			sss = append(sss, ss)
-		}
+	versions := r.subjectVersionCache[subject]
+	if len(versions) == 0 {
+		return 1
 	}
-	return sss
-}
-
-func (r *SchemaRegistry) findOneByID(id int) (sr.Schema, error) {
-	for _, ss := range r.schemas {
-		if ss.ID == id {
-			return ss.Schema, nil
-		}
-	}
-	return sr.Schema{}, ErrSchemaNotFound
-}
-
-func (r *SchemaRegistry) findAllByID(id int) []sr.SubjectSchema {
-	var sss []sr.SubjectSchema
-	for _, ss := range r.schemas {
-		if ss.ID == id {
-			sss = append(sss, ss)
-		}
-	}
-	return sss
-}
-
-func (r *SchemaRegistry) findBySubjectID(subject string, id int) (sr.SubjectSchema, error) {
-	for _, ss := range r.schemas {
-		if ss.Subject == subject && ss.ID == id {
-			return ss, nil
-		}
-	}
-	return sr.SubjectSchema{}, ErrSchemaNotFound
-}
-
-func (r *SchemaRegistry) findBySubjectVersion(subject string, version int) (sr.SubjectSchema, error) {
-	for _, ss := range r.schemas {
-		if ss.Subject == subject && ss.Version == version {
-			return ss, nil
-		}
-	}
-	return sr.SubjectSchema{}, ErrSubjectNotFound
+	return versions[len(versions)-1] + 1
 }

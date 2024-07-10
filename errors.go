@@ -14,6 +14,8 @@
 
 package schemaregistry
 
+import "github.com/twmb/franz-go/pkg/sr"
+
 const (
 	ErrorCodeSubjectNotFound                            = 40401
 	ErrorCodeVersionNotFound                            = 40402
@@ -38,40 +40,32 @@ const (
 )
 
 var (
-	ErrSubjectNotFound                            = &Error{ErrorCode: ErrorCodeSubjectNotFound, Message: "subject not found"}
-	ErrVersionNotFound                            = &Error{ErrorCode: ErrorCodeVersionNotFound, Message: "Version not found"}
-	ErrSchemaNotFound                             = &Error{ErrorCode: ErrorCodeSchemaNotFound, Message: "Schema not found"}
-	ErrExporterNotFound                           = &Error{ErrorCode: ErrorCodeExporterNotFound, Message: "Exporter not found"}
-	ErrIncompatibleSchema                         = &Error{ErrorCode: ErrorCodeIncompatibleSchema, Message: "Incompatible schema"}
-	ErrMissingOrInvalidExporterName               = &Error{ErrorCode: ErrorCodeMissingOrInvalidExporterName, Message: "Missing or invalid exporter name"}
-	ErrMissingOrInvalidExporterConfig             = &Error{ErrorCode: ErrorCodeMissingOrInvalidExporterConfig, Message: "Missing or invalid exporter config"}
-	ErrInvalidExporterSubjects                    = &Error{ErrorCode: ErrorCodeInvalidExporterSubjects, Message: "Invalid exporter subjects"}
-	ErrExporterAlreadyExists                      = &Error{ErrorCode: ErrorCodeExporterAlreadyExists, Message: "Exporter already exists"}
-	ErrExporterAlreadyRunning                     = &Error{ErrorCode: ErrorCodeExporterAlreadyRunning, Message: "Exporter already running"}
-	ErrExporterAlreadyStarting                    = &Error{ErrorCode: ErrorCodeExporterAlreadyStarting, Message: "Exporter already starting"}
-	ErrExporterNotPaused                          = &Error{ErrorCode: ErrorCodeExporterNotPaused, Message: "Exporter not paused"}
-	ErrTooManyExporters                           = &Error{ErrorCode: ErrorCodeTooManyExporters, Message: "Too many exporters"}
-	ErrInvalidSchema                              = &Error{ErrorCode: ErrorCodeInvalidSchema, Message: "Invalid schema"}
-	ErrInvalidVersion                             = &Error{ErrorCode: ErrorCodeInvalidVersion, Message: "Invalid version"}
-	ErrInvalidCompatibilityLevel                  = &Error{ErrorCode: ErrorCodeInvalidCompatibilityLevel, Message: "Invalid compatibility level"}
-	ErrInvalidMode                                = &Error{ErrorCode: ErrorCodeInvalidMode, Message: "Invalid mode"}
-	ErrErrorInTheBackendDataStore                 = &Error{ErrorCode: ErrorCodeErrorInTheBackendDataStore, Message: "Error in the backend data store"}
-	ErrOperationTimedOut                          = &Error{ErrorCode: ErrorCodeOperationTimedOut, Message: "Operation timed out"}
-	ErrErrorWhileForwardingTheRequestToThePrimary = &Error{ErrorCode: ErrorCodeErrorWhileForwardingTheRequestToThePrimary, Message: "Error while forwarding the request to the primary"}
+	ErrSubjectNotFound                            = &sr.ResponseError{ErrorCode: ErrorCodeSubjectNotFound, Message: "subject not found"}
+	ErrVersionNotFound                            = &sr.ResponseError{ErrorCode: ErrorCodeVersionNotFound, Message: "Version not found"}
+	ErrSchemaNotFound                             = &sr.ResponseError{ErrorCode: ErrorCodeSchemaNotFound, Message: "Schema not found"}
+	ErrExporterNotFound                           = &sr.ResponseError{ErrorCode: ErrorCodeExporterNotFound, Message: "Exporter not found"}
+	ErrIncompatibleSchema                         = &sr.ResponseError{ErrorCode: ErrorCodeIncompatibleSchema, Message: "Incompatible schema"}
+	ErrMissingOrInvalidExporterName               = &sr.ResponseError{ErrorCode: ErrorCodeMissingOrInvalidExporterName, Message: "Missing or invalid exporter name"}
+	ErrMissingOrInvalidExporterConfig             = &sr.ResponseError{ErrorCode: ErrorCodeMissingOrInvalidExporterConfig, Message: "Missing or invalid exporter config"}
+	ErrInvalidExporterSubjects                    = &sr.ResponseError{ErrorCode: ErrorCodeInvalidExporterSubjects, Message: "Invalid exporter subjects"}
+	ErrExporterAlreadyExists                      = &sr.ResponseError{ErrorCode: ErrorCodeExporterAlreadyExists, Message: "Exporter already exists"}
+	ErrExporterAlreadyRunning                     = &sr.ResponseError{ErrorCode: ErrorCodeExporterAlreadyRunning, Message: "Exporter already running"}
+	ErrExporterAlreadyStarting                    = &sr.ResponseError{ErrorCode: ErrorCodeExporterAlreadyStarting, Message: "Exporter already starting"}
+	ErrExporterNotPaused                          = &sr.ResponseError{ErrorCode: ErrorCodeExporterNotPaused, Message: "Exporter not paused"}
+	ErrTooManyExporters                           = &sr.ResponseError{ErrorCode: ErrorCodeTooManyExporters, Message: "Too many exporters"}
+	ErrInvalidSchema                              = &sr.ResponseError{ErrorCode: ErrorCodeInvalidSchema, Message: "Invalid schema"}
+	ErrInvalidVersion                             = &sr.ResponseError{ErrorCode: ErrorCodeInvalidVersion, Message: "Invalid version"}
+	ErrInvalidCompatibilityLevel                  = &sr.ResponseError{ErrorCode: ErrorCodeInvalidCompatibilityLevel, Message: "Invalid compatibility level"}
+	ErrInvalidMode                                = &sr.ResponseError{ErrorCode: ErrorCodeInvalidMode, Message: "Invalid mode"}
+	ErrErrorInTheBackendDataStore                 = &sr.ResponseError{ErrorCode: ErrorCodeErrorInTheBackendDataStore, Message: "Error in the backend data store"}
+	ErrOperationTimedOut                          = &sr.ResponseError{ErrorCode: ErrorCodeOperationTimedOut, Message: "Operation timed out"}
+	ErrErrorWhileForwardingTheRequestToThePrimary = &sr.ResponseError{ErrorCode: ErrorCodeErrorWhileForwardingTheRequestToThePrimary, Message: "Error while forwarding the request to the primary"}
 )
 
-// Error is a schema registry error.
-type Error struct {
-	ErrorCode int    `json:"error_code"`
-	Message   string `json:"message"`
-}
-
-// Error implements the error interface.
-func (e *Error) Error() string {
-	return e.Message
-}
-
-// StatusCode returns the HTTP status code for the error.
-func (e *Error) StatusCode() int {
-	return e.ErrorCode / 100
+// StatusCode returns the HTTP status code for the given error.
+func StatusCode(errCode int) int {
+	if errCode < 10000 || errCode >= 60000 {
+		return 500
+	}
+	return errCode / 100
 }

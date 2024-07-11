@@ -27,6 +27,8 @@ import (
 
 // SchemaRegistry is a schema registry that stores schemas in memory.
 type SchemaRegistry struct {
+	db database.DB
+
 	schemaStore        *schemaStore
 	subjectSchemaStore *subjectSchemaStore
 
@@ -42,6 +44,8 @@ type SchemaRegistry struct {
 
 func NewSchemaRegistry(db database.DB) (*SchemaRegistry, error) {
 	r := &SchemaRegistry{
+		db: db,
+
 		schemaStore:        newSchemaStore(db),
 		subjectSchemaStore: newSubjectSchemaStore(db),
 
@@ -69,7 +73,8 @@ func NewSchemaRegistry(db database.DB) (*SchemaRegistry, error) {
 	return r, nil
 }
 
-func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schema sr.Schema) (sr.SubjectSchema, error) {
+//nolint:funlen // refactor at some point
+func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schema sr.Schema) (_ sr.SubjectSchema, err error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
@@ -101,8 +106,21 @@ func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schem
 		Schema:  schema,
 	}
 
-	// TODO create transaction if needed
-	err := r.schemaStore.Set(ctx, ss.ID, ss.Schema)
+	txn := database.TransactionFromContext(ctx)
+	if txn != nil {
+		// the caller created a transaction, let them commit it
+		txn = nil
+	} else {
+		// the caller didn't create a transaction, we need to create one
+		// to ensure that the schema and subject schema are stored atomically
+		txn, ctx, err = r.db.NewTransaction(ctx, true)
+		if err != nil {
+			return sr.SubjectSchema{}, fmt.Errorf("failed to create transaction: %w", err)
+		}
+		defer txn.Discard()
+	}
+
+	err = r.schemaStore.Set(ctx, ss.ID, ss.Schema)
 	if err != nil {
 		return sr.SubjectSchema{}, err
 	}
@@ -110,6 +128,15 @@ func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schem
 	if err != nil {
 		return sr.SubjectSchema{}, err
 	}
+
+	if txn != nil {
+		// commit the transaction if we created it
+		if err := txn.Commit(); err != nil {
+			return sr.SubjectSchema{}, fmt.Errorf("failed to commit transaction: %w", err)
+		}
+	}
+
+	// update caches
 	r.fingerprintIDCache[fp] = id
 	r.subjectVersionCache[subject] = append(r.subjectVersionCache[subject], ss.Version)
 	r.idSubjectSchemaCache[id] = append(r.idSubjectSchemaCache[id], sr.SubjectSchema{

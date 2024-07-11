@@ -5,6 +5,7 @@ go 1.22.4
 require (
 	github.com/conduitio/conduit-commons v0.2.1-0.20240710123212-da9a7a343b7b
 	github.com/golangci/golangci-lint v1.59.1
+	github.com/google/go-cmp v0.6.0
 	github.com/matryer/is v1.4.1
 	github.com/neilotoole/slogt v1.1.0
 	github.com/twmb/franz-go/pkg/sr v1.0.0
@@ -74,7 +75,6 @@ require (
 	github.com/golangci/plugin-module-register v0.1.1 // indirect
 	github.com/golangci/revgrep v0.5.3 // indirect
 	github.com/golangci/unconvert v0.0.0-20240309020433-c5143eacb3ed // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gordonklaus/ineffassign v0.1.0 // indirect
 	github.com/gostaticanalysis/analysisutil v0.7.1 // indirect

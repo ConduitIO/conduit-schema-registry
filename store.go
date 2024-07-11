@@ -76,19 +76,9 @@ func (s *schemaStore) Delete(ctx context.Context, id int) error {
 }
 
 // store is namespaced, meaning that keys all have the same prefix.
-// You can pass this a blank string to get the prefix key for all schemas.
 func (*schemaStore) toKey(id int) string {
 	return schemaStoreKeyPrefix + strconv.Itoa(id)
 }
-
-// func (*schemaStore) fromKey(key string) int {
-// 	raw := strings.TrimPrefix(key, schemaStoreKeyPrefix)
-// 	id, err := strconv.Atoi(raw)
-// 	if err != nil {
-// 		panic("invalid key") // TODO: handle error
-// 	}
-// 	return id
-// }
 
 // encode from sr.Schema to []byte.
 func (*schemaStore) encode(s sr.Schema) ([]byte, error) {
@@ -115,7 +105,7 @@ func (s *schemaStore) decode(raw []byte) (sr.Schema, error) {
 
 const (
 	// subjectSchemaStoreKeyPrefix is added to all keys before storing them in store.
-	subjectSchemaStoreKeyPrefix = "schemaregistry:schemasubject:"
+	subjectSchemaStoreKeyPrefix = "schemaregistry:subjectschema:"
 )
 
 // subjectSchemaStore handles the persistence and fetching of schemas.
@@ -142,7 +132,7 @@ func (s *subjectSchemaStore) Set(ctx context.Context, subject string, version in
 
 	err = s.db.Set(ctx, key, raw)
 	if err != nil {
-		return fmt.Errorf("failed to store subject schema with subject/version %q/%q: %w", subject, version, err)
+		return fmt.Errorf("failed to store subject schema with subject:version %q:%q: %w", subject, version, err)
 	}
 
 	return nil
@@ -151,9 +141,30 @@ func (s *subjectSchemaStore) Set(ctx context.Context, subject string, version in
 func (s *subjectSchemaStore) Get(ctx context.Context, subject string, version int) (sr.SubjectSchema, error) {
 	raw, err := s.db.Get(ctx, s.toKey(subject, version))
 	if err != nil {
-		return sr.SubjectSchema{}, fmt.Errorf("failed to get subject schema with subject/version %q/%q: %w", subject, version, err)
+		return sr.SubjectSchema{}, fmt.Errorf("failed to get subject schema with subject:version %q:%q: %w", subject, version, err)
 	}
 	return s.decode(raw)
+}
+
+func (s *subjectSchemaStore) GetAll(ctx context.Context) ([]sr.SubjectSchema, error) {
+	keys, err := s.db.GetKeys(ctx, subjectSchemaStoreKeyPrefix)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve keys: %w", err)
+	}
+	var schemas []sr.SubjectSchema
+	for _, key := range keys {
+		raw, err := s.db.Get(ctx, key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get subject schema with subject:version %q: %w", key, err)
+		}
+		ss, err := s.decode(raw)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode subject schema with subject:version %q: %w", key, err)
+		}
+		schemas = append(schemas, ss)
+	}
+
+	return schemas, nil
 }
 
 func (s *subjectSchemaStore) Delete(ctx context.Context, subject string, version int) error {
@@ -163,31 +174,16 @@ func (s *subjectSchemaStore) Delete(ctx context.Context, subject string, version
 
 	err := s.db.Set(ctx, s.toKey(subject, version), nil)
 	if err != nil {
-		return fmt.Errorf("failed to delete subject schema with subject/version %q/%q: %w", subject, version, err)
+		return fmt.Errorf("failed to delete subject schema with subject:version %q:%q: %w", subject, version, err)
 	}
 
 	return nil
 }
 
 // store is namespaced, meaning that keys all have the same prefix.
-// You can pass this a blank string to get the prefix key for all subject schemas.
 func (*subjectSchemaStore) toKey(subject string, version int) string {
 	return subjectSchemaStoreKeyPrefix + subject + ":" + strconv.Itoa(version)
 }
-
-// func (*subjectSchemaStore) fromKey(key string) (string, int) {
-// 	raw := strings.TrimPrefix(key, subjectSchemaStoreKeyPrefix)
-// 	i := strings.LastIndex(raw, ":")
-// 	if i == -1 {
-// 		panic("invalid key") // TODO: handle error
-// 	}
-// 	subject := raw[:i]
-// 	version, err := strconv.Atoi(raw[i+1:])
-// 	if err != nil {
-// 		panic("invalid key") // TODO: handle error
-// 	}
-// 	return subject, version
-// }
 
 // encode from sr.SubjectSchema to []byte.
 func (*subjectSchemaStore) encode(ss sr.SubjectSchema) ([]byte, error) {

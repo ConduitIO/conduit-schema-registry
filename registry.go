@@ -46,10 +46,26 @@ func NewSchemaRegistry(db database.DB) (*SchemaRegistry, error) {
 		subjectSchemaStore: newSubjectSchemaStore(db),
 
 		fingerprintIDCache:   make(map[uint64]int),
-		idSubjectSchemaCache: make(map[int][]sr.SubjectSchema),
 		subjectVersionCache:  make(map[string][]int),
+		idSubjectSchemaCache: make(map[int][]sr.SubjectSchema),
 	}
-	// TODO init caches from store
+
+	sss, err := r.subjectSchemaStore.GetAll(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all subject schemas from store: %w", err)
+	}
+	for _, ss := range sss {
+		fp := rabin.Bytes([]byte(ss.Schema.Schema))
+		r.fingerprintIDCache[fp] = ss.ID
+		r.subjectVersionCache[ss.Subject] = append(r.subjectVersionCache[ss.Subject], ss.Version)
+		r.idSubjectSchemaCache[ss.ID] = append(r.idSubjectSchemaCache[ss.ID], sr.SubjectSchema{
+			Subject: ss.Subject,
+			Version: ss.Version,
+			ID:      ss.ID,
+			Schema:  sr.Schema{}, // don't include schema in cache
+		})
+	}
+
 	return r, nil
 }
 
@@ -95,13 +111,13 @@ func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schem
 		return sr.SubjectSchema{}, err
 	}
 	r.fingerprintIDCache[fp] = id
+	r.subjectVersionCache[subject] = append(r.subjectVersionCache[subject], ss.Version)
 	r.idSubjectSchemaCache[id] = append(r.idSubjectSchemaCache[id], sr.SubjectSchema{
 		Subject: ss.Subject,
 		Version: ss.Version,
 		ID:      ss.ID,
 		Schema:  sr.Schema{}, // don't include schema in cache
 	})
-	r.subjectVersionCache[subject] = append(r.subjectVersionCache[subject], ss.Version)
 
 	return ss, nil
 }

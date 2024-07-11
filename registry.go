@@ -22,6 +22,7 @@ import (
 
 	"github.com/conduitio/conduit-commons/database"
 	"github.com/conduitio/conduit-commons/rabin"
+	"github.com/conduitio/conduit-commons/rollback"
 	"github.com/twmb/franz-go/pkg/sr"
 )
 
@@ -31,12 +32,12 @@ type SchemaRegistry struct {
 
 	schemaStore        *schemaStore
 	subjectSchemaStore *subjectSchemaStore
+	idSequenceStore    *sequenceStore
 
 	fingerprintIDCache   map[uint64]int
 	idSubjectSchemaCache map[int][]sr.SubjectSchema // subject schema doesn't contain actual schema
 	subjectVersionCache  map[string][]int
 
-	// TODO persist in store
 	idSequence int
 
 	m sync.Mutex
@@ -48,13 +49,24 @@ func NewSchemaRegistry(db database.DB) (*SchemaRegistry, error) {
 
 		schemaStore:        newSchemaStore(db),
 		subjectSchemaStore: newSubjectSchemaStore(db),
+		idSequenceStore:    newSequenceStore(db, "schemaid"),
 
 		fingerprintIDCache:   make(map[uint64]int),
 		subjectVersionCache:  make(map[string][]int),
 		idSubjectSchemaCache: make(map[int][]sr.SubjectSchema),
 	}
 
-	sss, err := r.subjectSchemaStore.GetAll(context.Background())
+	ctx := context.Background()
+
+	// load sequence
+	id, err := r.idSequenceStore.Get(ctx)
+	if err != nil && !errors.Is(err, database.ErrKeyNotExist) {
+		return nil, fmt.Errorf("failed to get schema id sequence from store: %w", err)
+	}
+	r.idSequence = id
+
+	// load schemas
+	sss, err := r.subjectSchemaStore.GetAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all subject schemas from store: %w", err)
 	}
@@ -78,28 +90,32 @@ func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schem
 	r.m.Lock()
 	defer r.m.Unlock()
 
+	var rb rollback.R
+	defer rb.MustExecute()
+
 	fp := rabin.Bytes([]byte(schema.Schema))
 	id, ok := r.fingerprintIDCache[fp]
 	if !ok {
 		// schema does not exist yet
 		id = r.nextID()
-	}
-
-	// check if a subject exists for this id
-	var ss sr.SubjectSchema
-	for _, s := range r.idSubjectSchemaCache[id] {
-		if s.Subject == subject && s.Version > ss.Version {
-			ss = s
+		rb.AppendPure(r.revertID)
+	} else {
+		// check if a subject exists for this id
+		var ss sr.SubjectSchema
+		for _, s := range r.idSubjectSchemaCache[id] {
+			if s.Subject == subject && s.Version > ss.Version {
+				ss = s
+			}
 		}
-	}
-	if ss.ID != 0 {
-		// schema already exists for this subject, return it
-		ss.Schema = schema
-		return ss, nil
+		if ss.ID != 0 {
+			// schema already exists for this subject, return it
+			ss.Schema = schema
+			return ss, nil
+		}
 	}
 
 	// we have to create a new SubjectSchema
-	ss = sr.SubjectSchema{
+	ss := sr.SubjectSchema{
 		Subject: subject,
 		Version: r.nextVersion(subject),
 		ID:      id,
@@ -146,6 +162,7 @@ func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schem
 		Schema:  sr.Schema{}, // don't include schema in cache
 	})
 
+	rb.Skip()
 	return ss, nil
 }
 
@@ -232,7 +249,12 @@ func (r *SchemaRegistry) nextID() int {
 	return r.idSequence
 }
 
+func (r *SchemaRegistry) revertID() {
+	r.idSequence--
+}
+
 func (r *SchemaRegistry) nextVersion(subject string) int {
+	// TODO: once we implement deleting of subjects this won't be as easy
 	versions := r.subjectVersionCache[subject]
 	if len(versions) == 0 {
 		return 1

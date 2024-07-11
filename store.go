@@ -207,3 +207,42 @@ func (s *subjectSchemaStore) decode(raw []byte) (sr.SubjectSchema, error) {
 	}
 	return out, nil
 }
+
+const (
+	// sequenceStoreKeyPrefix is added to all keys before storing them in store.
+	sequenceStoreKeyPrefix = "schemaregistry:sequence:"
+)
+
+// sequenceStore handles the persistence and fetching of schemas.
+type sequenceStore struct {
+	db  database.DB
+	key string
+}
+
+func newSequenceStore(db database.DB, sequenceName string) *sequenceStore {
+	return &sequenceStore{
+		db:  db,
+		key: sequenceStoreKeyPrefix + sequenceName,
+	}
+}
+
+func (s *sequenceStore) Set(ctx context.Context, sequence int) error {
+	raw := []byte(strconv.Itoa(sequence))
+	err := s.db.Set(ctx, s.key, raw)
+	if err != nil {
+		return fmt.Errorf("failed to store sequence %q: %w", s.key, err)
+	}
+	return nil
+}
+
+func (s *sequenceStore) Get(ctx context.Context) (int, error) {
+	raw, err := s.db.Get(ctx, s.key)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get sequence %q: %w", s.key, err)
+	}
+	sequence, err := strconv.Atoi(string(raw))
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert sequence %q to int: %w", raw, err)
+	}
+	return sequence, nil
+}

@@ -151,8 +151,8 @@ func (s *subjectSchemaStore) GetAll(ctx context.Context) ([]sr.SubjectSchema, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve keys: %w", err)
 	}
-	var schemas []sr.SubjectSchema
-	for _, key := range keys {
+	schemas := make([]sr.SubjectSchema, len(keys))
+	for i, key := range keys {
 		raw, err := s.db.Get(ctx, key)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get subject schema with subject:version %q: %w", key, err)
@@ -161,7 +161,7 @@ func (s *subjectSchemaStore) GetAll(ctx context.Context) ([]sr.SubjectSchema, er
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode subject schema with subject:version %q: %w", key, err)
 		}
-		schemas = append(schemas, ss)
+		schemas[i] = ss
 	}
 
 	return schemas, nil

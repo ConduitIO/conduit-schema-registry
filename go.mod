@@ -3,7 +3,7 @@ module github.com/conduitio/conduit-schema-registry
 go 1.22.4
 
 require (
-	github.com/conduitio/conduit-commons v0.2.1-0.20240710123212-da9a7a343b7b
+	github.com/conduitio/conduit-commons v0.2.1-0.20240712132816-7dd448901751
 	github.com/golangci/golangci-lint v1.59.1
 	github.com/google/go-cmp v0.6.0
 	github.com/matryer/is v1.4.1

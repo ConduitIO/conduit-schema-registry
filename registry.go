@@ -100,17 +100,14 @@ func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schem
 		id = r.nextID()
 		rb.AppendPure(r.revertID)
 	} else {
-		// check if a subject exists for this id
-		var ss sr.SubjectSchema
+		// Schema already exists, check if it exists for this subject.
+		// We can be sure there is at most one version for a subject with a given
+		// fingerprint, so we can just return the first one we find.
 		for _, s := range r.idSubjectSchemaCache[id] {
-			if s.Subject == subject && s.Version > ss.Version {
-				ss = s
+			if s.Subject == subject {
+				s.Schema = schema // the cache doesn't contain the actual schema
+				return s, nil
 			}
-		}
-		if ss.ID != 0 {
-			// schema already exists for this subject, return it
-			ss.Schema = schema
-			return ss, nil
 		}
 	}
 

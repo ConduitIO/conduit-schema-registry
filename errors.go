@@ -40,7 +40,7 @@ const (
 )
 
 var (
-	ErrSubjectNotFound                            = &sr.ResponseError{ErrorCode: ErrorCodeSubjectNotFound, Message: "subject not found"}
+	ErrSubjectNotFound                            = &sr.ResponseError{ErrorCode: ErrorCodeSubjectNotFound, Message: "Subject not found"}
 	ErrVersionNotFound                            = &sr.ResponseError{ErrorCode: ErrorCodeVersionNotFound, Message: "Version not found"}
 	ErrSchemaNotFound                             = &sr.ResponseError{ErrorCode: ErrorCodeSchemaNotFound, Message: "Schema not found"}
 	ErrExporterNotFound                           = &sr.ResponseError{ErrorCode: ErrorCodeExporterNotFound, Message: "Exporter not found"}

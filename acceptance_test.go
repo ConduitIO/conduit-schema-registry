@@ -24,6 +24,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/matryer/is"
 	"github.com/twmb/franz-go/pkg/sr"
 )
@@ -76,7 +77,7 @@ func (a acceptanceTest) Test(t *testing.T) {
 func (a acceptanceTest) TestSchemaByID(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("NotFound", func(t *testing.T) {
+	t.Run("not found", func(t *testing.T) {
 		is := is.New(t)
 		defer a.rtr.Clear() // clear requests after test
 		schema, err := a.client.SchemaByID(ctx, 1000)
@@ -98,7 +99,7 @@ func (a acceptanceTest) TestSchemaByID(t *testing.T) {
 		)
 	})
 
-	t.Run("Found", func(t *testing.T) {
+	t.Run("found", func(t *testing.T) {
 		is := is.New(t)
 		defer a.rtr.Clear()
 
@@ -160,7 +161,7 @@ func (a acceptanceTest) TestDeleteSchemaSubject(t *testing.T) {
 func (a acceptanceTest) TestSchemaBySubjectVersion(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("NotFound", func(t *testing.T) {
+	t.Run("not found", func(t *testing.T) {
 		is := is.New(t)
 		defer a.rtr.Clear() // clear requests after test
 
@@ -183,7 +184,7 @@ func (a acceptanceTest) TestSchemaBySubjectVersion(t *testing.T) {
 		)
 	})
 
-	t.Run("Found", func(t *testing.T) {
+	t.Run("found", func(t *testing.T) {
 		is := is.New(t)
 		defer a.rtr.Clear() // clear requests after test
 
@@ -218,7 +219,102 @@ func (a acceptanceTest) TestSchemaBytesBySubjectVersion(t *testing.T) {
 
 // POST /subjects/{subject}/versions
 func (a acceptanceTest) TestCreateSchema(t *testing.T) {
-	t.Skip("not implemented") // TODO
+	ctx := context.Background()
+
+	t.Run("create same twice", func(t *testing.T) {
+		is := is.New(t)
+		defer a.rtr.Clear() // clear requests after test
+
+		want, err := a.client.CreateSchema(ctx, "TestCreateSchema_create_same_twice", sr.Schema{
+			Schema: `"string"`,
+			Type:   sr.TypeAvro,
+		})
+		is.NoErr(err)
+		is.Equal(want.Subject, "TestCreateSchema_create_same_twice")
+		is.Equal(want.Version, 1)
+		is.Equal(want.Schema.Schema, `"string"`)
+		a.rtr.AssertRecord(is, 0,
+			assertMethod("POST"),
+			assertRequestURI("/subjects/TestCreateSchema_create_same_twice/versions"),
+			assertResponseStatus(200),
+			assertError(nil),
+		)
+
+		a.rtr.Clear() // clear requests after first create
+
+		// create the same schema again
+		got, err := a.client.CreateSchema(ctx, "TestCreateSchema_create_same_twice", sr.Schema{
+			Schema: `"string"`,
+			Type:   sr.TypeAvro,
+		})
+		is.NoErr(err)
+		is.Equal("", cmp.Diff(want, got))
+		a.rtr.AssertRecord(is, 0,
+			assertMethod("POST"),
+			assertRequestURI("/subjects/TestCreateSchema_create_same_twice/versions"),
+			assertResponseStatus(200),
+			assertError(nil),
+		)
+	})
+
+	t.Run("revert schema change", func(t *testing.T) {
+		is := is.New(t)
+		defer a.rtr.Clear() // clear requests after test
+
+		// Note: once we add compatibility checks this test should fail, because
+		// the schema is not compatible with the previous version.
+
+		got, err := a.client.CreateSchema(ctx, "TestCreateSchema_revert_schema_change", sr.Schema{
+			Schema: `"string"`,
+			Type:   sr.TypeAvro,
+		})
+		is.NoErr(err)
+		is.Equal(got.Subject, "TestCreateSchema_revert_schema_change")
+		is.Equal(got.Version, 1)
+		is.Equal(got.Schema.Schema, `"string"`)
+		a.rtr.AssertRecord(is, 0,
+			assertMethod("POST"),
+			assertRequestURI("/subjects/TestCreateSchema_revert_schema_change/versions"),
+			assertResponseStatus(200),
+			assertError(nil),
+		)
+
+		a.rtr.Clear() // clear requests after first create
+
+		// update schema, expect bumped version
+		got, err = a.client.CreateSchema(ctx, "TestCreateSchema_revert_schema_change", sr.Schema{
+			Schema: `"int"`,
+			Type:   sr.TypeAvro,
+		})
+		is.NoErr(err)
+		is.Equal(got.Subject, "TestCreateSchema_revert_schema_change")
+		is.Equal(got.Version, 2)
+		is.Equal(got.Schema.Schema, `"int"`)
+		a.rtr.AssertRecord(is, 0,
+			assertMethod("POST"),
+			assertRequestURI("/subjects/TestCreateSchema_revert_schema_change/versions"),
+			assertResponseStatus(200),
+			assertError(nil),
+		)
+
+		a.rtr.Clear() // clear requests after first create
+
+		// revert schema change, expect bumped version again
+		got, err = a.client.CreateSchema(ctx, "TestCreateSchema_revert_schema_change", sr.Schema{
+			Schema: `"string"`,
+			Type:   sr.TypeAvro,
+		})
+		is.NoErr(err)
+		is.Equal(got.Subject, "TestCreateSchema_revert_schema_change")
+		is.Equal(got.Version, 1)
+		is.Equal(got.Schema.Schema, `"string"`)
+		a.rtr.AssertRecord(is, 0,
+			assertMethod("POST"),
+			assertRequestURI("/subjects/TestCreateSchema_revert_schema_change/versions"),
+			assertResponseStatus(200),
+			assertError(nil),
+		)
+	})
 }
 
 // POST /subjects/{subject}
@@ -386,8 +482,10 @@ func (r *roundTripRecorder) RoundTrip(req *http.Request) (resp *http.Response, e
 	r.m.Unlock()
 
 	defer func() {
+		r.m.Lock()
 		rec.Response = resp
 		rec.Error = err
+		r.m.Unlock()
 	}()
 	return r.rt.RoundTrip(req)
 }

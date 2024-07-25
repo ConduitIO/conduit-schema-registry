@@ -149,7 +149,56 @@ func (a acceptanceTest) TestSubjects(t *testing.T) {
 
 // GET /subjects/{subject}/versions
 func (a acceptanceTest) TestSchemaVersionsBySubject(t *testing.T) {
-	t.Skip("not implemented") // TODO
+	ctx := context.Background()
+
+	t.Run("not found", func(t *testing.T) {
+		is := is.New(t)
+		defer a.rtr.Clear() // clear requests after test
+		versions, err := a.client.SubjectVersions(ctx, "byte-me")
+		is.True(err != nil)
+		is.Equal(0, len(versions))
+
+		// check that error is expected
+		var respErr *sr.ResponseError
+		is.True(errors.As(err, &respErr))
+		is.Equal(ErrorCodeSubjectNotFound, respErr.ErrorCode)
+
+		// check requests made by the client
+		is.Equal(len(a.rtr.Records()), 1)
+		a.rtr.AssertRecord(is, 0,
+			assertMethod("GET"),
+			assertRequestURI("/subjects/byte-me/versions"),
+			assertResponseStatus(404),
+			assertError(nil),
+		)
+	})
+
+	t.Run("found", func(t *testing.T) {
+		is := is.New(t)
+		defer a.rtr.Clear()
+
+		// prepare a schema in the registry
+		want, err := a.client.CreateSchema(ctx, "TestSchemaVersionsBySubject", sr.Schema{
+			Schema: `"string"`,
+			Type:   sr.TypeAvro,
+		})
+		is.NoErr(err)
+		a.rtr.Clear() // we don't care about the setup requests
+
+		// now try fetching it
+		got, err := a.client.SubjectVersions(ctx, want.Subject)
+		is.NoErr(err)
+		is.Equal([]int{want.Version}, got)
+
+		// check requests made by the client
+		is.Equal(len(a.rtr.Records()), 1)
+		a.rtr.AssertRecord(is, 0,
+			assertMethod("GET"),
+			assertRequestURI(fmt.Sprintf("/subjects/%v/versions", want.Subject)),
+			assertResponseStatus(200),
+			assertError(nil),
+		)
+	})
 }
 
 // DELETE /subjects/{subject}

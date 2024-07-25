@@ -221,11 +221,11 @@ func (r *SchemaRegistry) SubjectVersionsByID(ctx context.Context, id int) ([]sr.
 	return sss, nil
 }
 
-func (r *SchemaRegistry) SchemaVersionsBySubject(ctx context.Context, subject string) ([]sr.SubjectSchema, error) {
+func (r *SchemaRegistry) SchemaVersionsBySubject(ctx context.Context, subject string) ([]int, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	sss := make([]sr.SubjectSchema, len(r.subjectVersionCache[subject]))
+	sss := make([]int, len(r.subjectVersionCache[subject]))
 	// TODO this could be optimized to make a single round trip to the store
 	for i, version := range r.subjectVersionCache[subject] {
 		ss, err := r.subjectSchemaStore.Get(ctx, subject, version)
@@ -235,9 +235,12 @@ func (r *SchemaRegistry) SchemaVersionsBySubject(ctx context.Context, subject st
 			}
 			return nil, fmt.Errorf("failed to get subject schema from store: %w", err)
 		}
-		sss[i] = ss
+		sss[i] = ss.Version
 	}
 
+	if len(sss) == 0 {
+		return nil, ErrSubjectNotFound
+	}
 	return sss, nil
 }
 

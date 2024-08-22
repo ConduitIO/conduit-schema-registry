@@ -8,7 +8,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/matryer/is v1.4.1
 	github.com/neilotoole/slogt v1.1.0
-	github.com/twmb/franz-go/pkg/sr v1.0.1
+	github.com/twmb/franz-go/pkg/sr v1.1.0
 )
 
 require (

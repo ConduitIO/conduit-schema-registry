@@ -45,7 +45,7 @@ func TestSchemaRegistry_ID_Sequence(t *testing.T) {
 	is.NoErr(err)
 	is.Equal("", cmp.Diff(wantSchema1, gotSubjectSchema1))
 
-	// Create second SubjectSchema, should get a new ID
+	// Create second SubjectSchema with a new schema, should get a new ID
 	wantSchema2 := sr.SubjectSchema{
 		Subject: "test-subject",
 		Version: 2,
@@ -60,7 +60,7 @@ func TestSchemaRegistry_ID_Sequence(t *testing.T) {
 	underTestRestarted, err := NewSchemaRegistry(db)
 	is.NoErr(err)
 
-	// Create third SubjectSchema, should get a new ID
+	// Create third SubjectSchema with a new schema, should get a new ID
 	wantSchema3 := sr.SubjectSchema{
 		Subject: "test-subject-new",
 		Version: 1,

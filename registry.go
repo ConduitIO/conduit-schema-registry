@@ -141,6 +141,10 @@ func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schem
 	if err != nil {
 		return sr.SubjectSchema{}, err
 	}
+	err = r.idSequenceStore.Set(ctx, r.idSequence)
+	if err != nil {
+		return sr.SubjectSchema{}, err
+	}
 
 	if txn != nil {
 		// commit the transaction if we created it

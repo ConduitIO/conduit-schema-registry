@@ -18,11 +18,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"testing"
+
 	"github.com/conduitio/conduit-commons/database/inmemory"
 	"github.com/google/go-cmp/cmp"
 	"github.com/matryer/is"
 	"github.com/twmb/franz-go/pkg/sr"
-	"testing"
 )
 
 func TestSchemaRegistry_ID_Sequence(t *testing.T) {
@@ -96,12 +97,10 @@ func generateAvroSchema(is *is.I, numFields int) sr.Schema {
 	// Populate fields
 	fields := make([]map[string]interface{}, numFields)
 	for i := 0; i < numFields; i++ {
-		fieldName := fmt.Sprintf("example_field_%d", i+1)
-		field := map[string]interface{}{
-			"name": fieldName,
+		fields[i] = map[string]interface{}{
+			"name": fmt.Sprintf("example_field_%d", i+1),
 			"type": "string",
 		}
-		fields = append(fields, field)
 	}
 
 	// Update schema with fields

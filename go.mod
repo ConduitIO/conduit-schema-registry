@@ -3,7 +3,7 @@ module github.com/conduitio/conduit-schema-registry
 go 1.23.2
 
 require (
-	github.com/conduitio/conduit-commons v0.4.0
+	github.com/conduitio/conduit-commons v0.5.0
 	github.com/golangci/golangci-lint v1.61.0
 	github.com/google/go-cmp v0.6.0
 	github.com/matryer/is v1.4.1
@@ -177,7 +177,7 @@ require (
 	go.uber.org/automaxprocs v1.5.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/exp v0.0.0-20241004190924-225e2abe05e6 // indirect
+	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	golang.org/x/exp/typeparams v0.0.0-20240613232115-7f521ea00fb8 // indirect
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect

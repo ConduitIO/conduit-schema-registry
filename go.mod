@@ -5,7 +5,7 @@ go 1.23.2
 require (
 	github.com/conduitio/conduit-commons v0.5.1
 	github.com/golangci/golangci-lint v1.64.5
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/matryer/is v1.4.1
 	github.com/neilotoole/slogt v1.1.0
 	github.com/twmb/franz-go/pkg/sr v1.3.0

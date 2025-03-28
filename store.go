@@ -16,13 +16,13 @@ package schemaregistry
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/conduitio/conduit-commons/database"
+	"github.com/goccy/go-json"
 	"github.com/twmb/franz-go/pkg/sr"
 	"github.com/twmb/go-cache/cache"
 )

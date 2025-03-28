@@ -16,12 +16,12 @@ package schemaregistry
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/conduitio/conduit-commons/database"
 	"github.com/conduitio/conduit-commons/database/mock"
+	"github.com/goccy/go-json"
 	"github.com/matryer/is"
 	"github.com/twmb/franz-go/pkg/sr"
 	"go.uber.org/mock/gomock"

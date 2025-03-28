@@ -15,12 +15,12 @@
 package schemaregistry
 
 import (
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
 
+	"github.com/goccy/go-json"
 	"github.com/twmb/franz-go/pkg/sr"
 )
 

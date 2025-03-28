@@ -28,9 +28,7 @@ import (
 )
 
 func TestSchemaStore_Cache(t *testing.T) {
-	is := is.New(t)
 	ctx := context.Background()
-
 	ctrl := gomock.NewController(t)
 	db := mock.NewDB(ctrl)
 	store := newSchemaStore(db)
@@ -46,10 +44,11 @@ func TestSchemaStore_Cache(t *testing.T) {
 		},
 		SchemaRuleSet: nil,
 	}
-	schemaJson, _ := json.Marshal(schema)
+	schemaJSON, _ := json.Marshal(schema)
 
 	// First simulate a cache miss and a db miss
 	t.Run("cache miss and db miss", func(t *testing.T) {
+		is := is.New(t)
 		db.EXPECT().Get(ctx, "schemaregistry:schema:1").Return(nil, database.ErrKeyNotExist)
 		_, err := store.Get(ctx, 1)
 		is.True(errors.Is(err, database.ErrKeyNotExist))
@@ -57,19 +56,22 @@ func TestSchemaStore_Cache(t *testing.T) {
 
 	// Non-existent schema should be cached now
 	t.Run("cache hit, key not found", func(t *testing.T) {
+		is := is.New(t)
 		_, err := store.Get(ctx, 1)
 		is.True(errors.Is(err, database.ErrKeyNotExist))
 	})
 
 	// Now simulate a set
 	t.Run("set", func(t *testing.T) {
-		db.EXPECT().Set(ctx, "schemaregistry:schema:1", schemaJson).Return(nil)
+		is := is.New(t)
+		db.EXPECT().Set(ctx, "schemaregistry:schema:1", schemaJSON).Return(nil)
 		err := store.Set(ctx, 1, schema)
 		is.NoErr(err)
 	})
 
 	// Next time we should get a cache hit
 	t.Run("cache hit, key found", func(t *testing.T) {
+		is := is.New(t)
 		got, err := store.Get(ctx, 1)
 		is.NoErr(err)
 		is.Equal(schema, got)
@@ -77,6 +79,7 @@ func TestSchemaStore_Cache(t *testing.T) {
 
 	// Now delete the schema
 	t.Run("delete", func(t *testing.T) {
+		is := is.New(t)
 		db.EXPECT().Set(ctx, "schemaregistry:schema:1", nil).Return(nil)
 		err := store.Delete(ctx, 1)
 		is.NoErr(err)
@@ -84,6 +87,7 @@ func TestSchemaStore_Cache(t *testing.T) {
 
 	// Again, we should be at an empty cache state and a db miss
 	t.Run("cache miss and db miss 2", func(t *testing.T) {
+		is := is.New(t)
 		db.EXPECT().Get(ctx, "schemaregistry:schema:1").Return(nil, database.ErrKeyNotExist)
 		_, err := store.Get(ctx, 1)
 		is.True(errors.Is(err, database.ErrKeyNotExist))
@@ -91,9 +95,7 @@ func TestSchemaStore_Cache(t *testing.T) {
 }
 
 func TestSubjectSchemaStore_Cache(t *testing.T) {
-	is := is.New(t)
 	ctx := context.Background()
-
 	ctrl := gomock.NewController(t)
 	db := mock.NewDB(ctrl)
 	store := newSubjectSchemaStore(db)
@@ -114,10 +116,11 @@ func TestSubjectSchemaStore_Cache(t *testing.T) {
 			SchemaRuleSet: nil,
 		},
 	}
-	subjectSchemaJson, _ := json.Marshal(subjectSchema)
+	subjectSchemaJSON, _ := json.Marshal(subjectSchema)
 
 	// First simulate a cache miss and a db miss
 	t.Run("cache miss and db miss", func(t *testing.T) {
+		is := is.New(t)
 		db.EXPECT().Get(ctx, "schemaregistry:subjectschema:foo:1").Return(nil, database.ErrKeyNotExist)
 		_, err := store.Get(ctx, "foo", 1)
 		is.True(errors.Is(err, database.ErrKeyNotExist))
@@ -125,19 +128,22 @@ func TestSubjectSchemaStore_Cache(t *testing.T) {
 
 	// Non-existent schema should be cached now
 	t.Run("cache hit, key not found", func(t *testing.T) {
+		is := is.New(t)
 		_, err := store.Get(ctx, "foo", 1)
 		is.True(errors.Is(err, database.ErrKeyNotExist))
 	})
 
 	// Now simulate a set
 	t.Run("set", func(t *testing.T) {
-		db.EXPECT().Set(ctx, "schemaregistry:subjectschema:foo:1", subjectSchemaJson).Return(nil)
+		is := is.New(t)
+		db.EXPECT().Set(ctx, "schemaregistry:subjectschema:foo:1", subjectSchemaJSON).Return(nil)
 		err := store.Set(ctx, "foo", 1, subjectSchema)
 		is.NoErr(err)
 	})
 
 	// Next time we should get a cache hit
 	t.Run("cache hit, key found", func(t *testing.T) {
+		is := is.New(t)
 		got, err := store.Get(ctx, "foo", 1)
 		is.NoErr(err)
 		is.Equal(subjectSchema, got)
@@ -145,6 +151,7 @@ func TestSubjectSchemaStore_Cache(t *testing.T) {
 
 	// Now delete the schema
 	t.Run("delete", func(t *testing.T) {
+		is := is.New(t)
 		db.EXPECT().Set(ctx, "schemaregistry:subjectschema:foo:1", nil).Return(nil)
 		err := store.Delete(ctx, "foo", 1)
 		is.NoErr(err)
@@ -152,6 +159,7 @@ func TestSubjectSchemaStore_Cache(t *testing.T) {
 
 	// Again, we should be at an empty cache state and a db miss
 	t.Run("cache miss and db miss 2", func(t *testing.T) {
+		is := is.New(t)
 		db.EXPECT().Get(ctx, "schemaregistry:subjectschema:foo:1").Return(nil, database.ErrKeyNotExist)
 		_, err := store.Get(ctx, "foo", 1)
 		is.True(errors.Is(err, database.ErrKeyNotExist))

@@ -71,9 +71,13 @@ func (s *schemaStore) Get(ctx context.Context, id int) (sr.Schema, error) {
 		if err != nil {
 			return sr.Schema{}, fmt.Errorf("failed to get schema with ID %q: %w", id, err)
 		}
-		return s.decode(raw)
+		sch, err := s.decode(raw)
+		if err != nil {
+			return sr.Schema{}, fmt.Errorf("failed to decode schema with ID %q: %w", id, err)
+		}
+		return sch, nil
 	})
-	return sch, err
+	return sch, err //nolint:wrapcheck // Error is wrapped in the function above
 }
 
 func (s *schemaStore) Delete(ctx context.Context, id int) error {
@@ -81,7 +85,7 @@ func (s *schemaStore) Delete(ctx context.Context, id int) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete schema with ID %q: %w", id, err)
 	}
-	_, _, _ = s.cache.Delete(id)
+	s.cache.Delete(id) //nolint:errcheck // We don't care if the key doesn't exist
 
 	return nil
 }
@@ -93,14 +97,14 @@ func (*schemaStore) toKey(id int) string {
 
 // encode from sr.Schema to []byte.
 func (*schemaStore) encode(s sr.Schema) ([]byte, error) {
-	return json.Marshal(s)
+	return json.Marshal(s) //nolint:wrapcheck // We don't care about wrapping here
 }
 
 // decode from []byte to sr.Schema.
 func (s *schemaStore) decode(raw []byte) (sr.Schema, error) {
 	var out sr.Schema
 	err := json.Unmarshal(raw, &out)
-	return out, err
+	return out, err //nolint:wrapcheck // We don't care about wrapping here
 }
 
 const (
@@ -159,7 +163,7 @@ func (s *subjectSchemaStore) getByKey(ctx context.Context, key string) (sr.Subje
 		}
 		return ss, nil
 	})
-	return ss, err
+	return ss, err //nolint:wrapcheck // Error is wrapped in the function above
 }
 
 func (s *subjectSchemaStore) GetAll(ctx context.Context) ([]sr.SubjectSchema, error) {
@@ -191,7 +195,7 @@ func (s *subjectSchemaStore) Delete(ctx context.Context, subject string, version
 		return fmt.Errorf("failed to delete subject schema with subject:version %q: %w", key, err)
 	}
 
-	_, _, _ = s.cache.Delete(key)
+	s.cache.Delete(key) //nolint:errcheck // We don't care if the key doesn't exist
 
 	return nil
 }
@@ -203,14 +207,14 @@ func (*subjectSchemaStore) toKey(subject string, version int) string {
 
 // encode from sr.SubjectSchema to []byte.
 func (*subjectSchemaStore) encode(ss sr.SubjectSchema) ([]byte, error) {
-	return json.Marshal(ss)
+	return json.Marshal(ss) //nolint:wrapcheck // We don't care about wrapping here
 }
 
 // decode from []byte to sr.SubjectSchema.
 func (s *subjectSchemaStore) decode(raw []byte) (sr.SubjectSchema, error) {
 	var out sr.SubjectSchema
 	err := json.Unmarshal(raw, &out)
-	return out, err
+	return out, err //nolint:wrapcheck // We don't care about wrapping here
 }
 
 const (

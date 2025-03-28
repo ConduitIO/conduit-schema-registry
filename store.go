@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/conduitio/conduit-commons/database"
 	"github.com/twmb/franz-go/pkg/sr"
@@ -110,7 +111,8 @@ const (
 
 // subjectSchemaStore handles the persistence and fetching of schemas.
 type subjectSchemaStore struct {
-	db database.DB
+	db    database.DB
+	cache sync.Map // keys are "subject:version", values are sr.SubjectSchema
 }
 
 func newSubjectSchemaStore(db database.DB) *subjectSchemaStore {
@@ -135,15 +137,35 @@ func (s *subjectSchemaStore) Set(ctx context.Context, subject string, version in
 		return fmt.Errorf("failed to store subject schema with subject:version %q:%q: %w", subject, version, err)
 	}
 
+	// Update cache
+	cacheKey := s.toKey(subject, version)
+	s.cache.Store(cacheKey, sch)
+
 	return nil
 }
 
 func (s *subjectSchemaStore) Get(ctx context.Context, subject string, version int) (sr.SubjectSchema, error) {
-	raw, err := s.db.Get(ctx, s.toKey(subject, version))
+	// Check cache first
+	cacheKey := s.toKey(subject, version)
+	if cached, ok := s.cache.Load(cacheKey); ok {
+		return cached.(sr.SubjectSchema), nil
+	}
+
+	// Cache miss - load from DB
+	raw, err := s.db.Get(ctx, cacheKey)
 	if err != nil {
 		return sr.SubjectSchema{}, fmt.Errorf("failed to get subject schema with subject:version %q:%q: %w", subject, version, err)
 	}
-	return s.decode(raw)
+
+	schema, err := s.decode(raw)
+	if err != nil {
+		return sr.SubjectSchema{}, err
+	}
+
+	// Update cache
+	s.cache.Store(cacheKey, schema)
+
+	return schema, nil
 }
 
 func (s *subjectSchemaStore) GetAll(ctx context.Context) ([]sr.SubjectSchema, error) {
@@ -176,6 +198,10 @@ func (s *subjectSchemaStore) Delete(ctx context.Context, subject string, version
 	if err != nil {
 		return fmt.Errorf("failed to delete subject schema with subject:version %q:%q: %w", subject, version, err)
 	}
+
+	// Remove from cache
+	cacheKey := s.toKey(subject, version)
+	s.cache.Delete(cacheKey)
 
 	return nil
 }

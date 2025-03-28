@@ -16,11 +16,11 @@ package schemaregistry
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"testing"
 
 	"github.com/conduitio/conduit-commons/database/inmemory"
+	"github.com/goccy/go-json"
 	"github.com/google/go-cmp/cmp"
 	"github.com/matryer/is"
 	"github.com/twmb/franz-go/pkg/sr"

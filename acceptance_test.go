@@ -15,7 +15,6 @@
 package schemaregistry
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -75,7 +74,7 @@ func (a acceptanceTest) Test(t *testing.T) {
 
 // GET /schemas/ids/{id}
 func (a acceptanceTest) TestSchemaByID(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("not found", func(t *testing.T) {
 		is := is.New(t)
@@ -149,7 +148,7 @@ func (a acceptanceTest) TestSubjects(t *testing.T) {
 
 // GET /subjects/{subject}/versions
 func (a acceptanceTest) TestSchemaVersionsBySubject(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("not found", func(t *testing.T) {
 		is := is.New(t)
@@ -208,7 +207,7 @@ func (a acceptanceTest) TestDeleteSchemaSubject(t *testing.T) {
 
 // GET /subjects/{subject}/versions/{version}
 func (a acceptanceTest) TestSchemaBySubjectVersion(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("not found", func(t *testing.T) {
 		is := is.New(t)
@@ -268,7 +267,7 @@ func (a acceptanceTest) TestSchemaBytesBySubjectVersion(t *testing.T) {
 
 // POST /subjects/{subject}/versions
 func (a acceptanceTest) TestCreateSchema(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("create same twice", func(t *testing.T) {
 		is := is.New(t)

@@ -15,7 +15,6 @@
 package schemaregistry
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -28,7 +27,7 @@ import (
 )
 
 func TestSchemaStore_Cache(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctrl := gomock.NewController(t)
 	db := mock.NewDB(ctrl)
 	store := newSchemaStore(db)
@@ -95,7 +94,7 @@ func TestSchemaStore_Cache(t *testing.T) {
 }
 
 func TestSubjectSchemaStore_Cache(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctrl := gomock.NewController(t)
 	db := mock.NewDB(ctrl)
 	store := newSubjectSchemaStore(db)

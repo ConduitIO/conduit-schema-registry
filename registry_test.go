@@ -15,7 +15,6 @@
 package schemaregistry
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -28,7 +27,7 @@ import (
 
 func TestSchemaRegistry_ID_Sequence(t *testing.T) {
 	is := is.New(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	db := &inmemory.DB{}
 
 	underTest, err := NewSchemaRegistry(db)

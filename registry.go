@@ -225,7 +225,7 @@ func (r *SchemaRegistry) SubjectVersionsByID(ctx context.Context, id int) ([]sr.
 	return sss, nil
 }
 
-func (r *SchemaRegistry) SchemaVersionsBySubject(ctx context.Context, subject string) ([]int, error) {
+func (r *SchemaRegistry) SchemaVersionsBySubject(_ context.Context, subject string) ([]int, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 

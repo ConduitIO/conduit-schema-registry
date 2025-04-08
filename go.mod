@@ -10,7 +10,7 @@ require (
 	github.com/neilotoole/slogt v1.1.0
 	github.com/twmb/franz-go/pkg/sr v1.3.0
 	github.com/twmb/go-cache v1.2.1
-	go.uber.org/mock v0.5.0
+	go.uber.org/mock v0.5.1
 )
 
 require github.com/google/uuid v1.6.0 // indirect

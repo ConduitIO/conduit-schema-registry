@@ -9,7 +9,7 @@ require (
 	github.com/matryer/is v1.4.1
 	github.com/neilotoole/slogt v1.1.0
 	github.com/twmb/franz-go/pkg/sr v1.7.0
-	github.com/twmb/go-cache v1.2.1
+	github.com/twmb/go-cache v1.3.0
 	go.uber.org/mock v0.6.0
 )
 

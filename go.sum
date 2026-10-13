@@ -1,5 +1,5 @@
-github.com/conduitio/conduit-commons v0.6.0 h1:UgKXYAMEO3w759R5EmAP0Ax5yFWPGqvPMr/neltfsAI=
-github.com/conduitio/conduit-commons v0.6.0/go.mod h1:n+zdde8QZ+gX4m4tjv7qT1xomZSGZg/dpoTx/JR/fh4=
+github.com/conduitio/conduit-commons v0.7.0 h1:U4cm3d5R2Xl4kCW9v7zI2sB52YG3CRPIY+SwSqIaQvY=
+github.com/conduitio/conduit-commons v0.7.0/go.mod h1:Xq60Be6o3FPnqJKXnHs6TvErWvXgD4vyoeQXnK7Yw8o=
 github.com/goccy/go-json v0.10.6 h1:p8HrPJzOakx/mn/bQtjgNjdTcN+/S6FcG2CTtQOrHVU=
 github.com/goccy/go-json v0.10.6/go.mod h1:oq7eo15ShAhp70Anwd5lgX2pLfOS3QCiwU/PULtXL6M=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=

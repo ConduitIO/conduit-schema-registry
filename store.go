@@ -57,7 +57,7 @@ func (s *schemaStore) Set(ctx context.Context, id int, sch sr.Schema) error {
 
 	err = s.db.Set(ctx, s.toKey(id), raw)
 	if err != nil {
-		return fmt.Errorf("failed to store schema with ID %q: %w", id, err)
+		return fmt.Errorf("failed to store schema with ID %d: %w", id, err)
 	}
 
 	s.cache.Set(id, sch)
@@ -69,11 +69,11 @@ func (s *schemaStore) Get(ctx context.Context, id int) (sr.Schema, error) {
 	sch, err, _ := s.cache.Get(id, func() (sr.Schema, error) {
 		raw, err := s.db.Get(ctx, s.toKey(id))
 		if err != nil {
-			return sr.Schema{}, fmt.Errorf("failed to get schema with ID %q: %w", id, err)
+			return sr.Schema{}, fmt.Errorf("failed to get schema with ID %d: %w", id, err)
 		}
 		sch, err := s.decode(raw)
 		if err != nil {
-			return sr.Schema{}, fmt.Errorf("failed to decode schema with ID %q: %w", id, err)
+			return sr.Schema{}, fmt.Errorf("failed to decode schema with ID %d: %w", id, err)
 		}
 		return sch, nil
 	})
@@ -83,7 +83,7 @@ func (s *schemaStore) Get(ctx context.Context, id int) (sr.Schema, error) {
 func (s *schemaStore) Delete(ctx context.Context, id int) error {
 	err := s.db.Set(ctx, s.toKey(id), nil)
 	if err != nil {
-		return fmt.Errorf("failed to delete schema with ID %q: %w", id, err)
+		return fmt.Errorf("failed to delete schema with ID %d: %w", id, err)
 	}
 	s.cache.Delete(id) //nolint:errcheck // We don't care if the key doesn't exist
 

@@ -1,9 +1,9 @@
 module github.com/conduitio/conduit-schema-registry
 
-go 1.24.2
+go 1.26.9
 
 require (
-	github.com/conduitio/conduit-commons v0.6.0
+	github.com/conduitio/conduit-commons v0.7.0
 	github.com/goccy/go-json v0.10.6
 	github.com/google/go-cmp v0.7.0
 	github.com/matryer/is v1.4.1

@@ -18,10 +18,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/conduitio/conduit-commons/database"
-	"github.com/conduitio/conduit-commons/rabin"
 	"github.com/conduitio/conduit-commons/rollback"
 	"github.com/twmb/franz-go/pkg/sr"
 )
@@ -34,7 +34,8 @@ type SchemaRegistry struct {
 	subjectSchemaStore *subjectSchemaStore
 	idSequenceStore    *sequenceStore
 
-	fingerprintIDCache   map[uint64]int
+	digestIDCache        map[schemaDigest]int
+	digestSubjectVersion map[digestSubject]int      // version of the record registering a digest under a subject
 	idSubjectSchemaCache map[int][]sr.SubjectSchema // subject schema doesn't contain actual schema
 	subjectVersionCache  map[string][]int
 
@@ -51,28 +52,42 @@ func NewSchemaRegistry(db database.DB) (*SchemaRegistry, error) {
 		subjectSchemaStore: newSubjectSchemaStore(db),
 		idSequenceStore:    newSequenceStore(db, "schemaid"),
 
-		fingerprintIDCache:   make(map[uint64]int),
+		digestIDCache:        make(map[schemaDigest]int),
+		digestSubjectVersion: make(map[digestSubject]int),
 		subjectVersionCache:  make(map[string][]int),
 		idSubjectSchemaCache: make(map[int][]sr.SubjectSchema),
 	}
 
 	ctx := context.Background()
 
-	// load sequence
-	id, err := r.idSequenceStore.Get(ctx)
-	if err != nil && !errors.Is(err, database.ErrKeyNotExist) {
-		return nil, fmt.Errorf("failed to get schema id sequence from store: %w", err)
-	}
-	r.idSequence = id
-
-	// load schemas
-	sss, err := r.subjectSchemaStore.GetAll(ctx)
+	// Load and verify persisted state. A database written by v0.2.6 or earlier
+	// may carry corruption from the Rabin fingerprint collision bug
+	// (GHSA-pfr7-p89q-w2jp). We never rewrite stored text here; instead only
+	// digests that agree with the text stored at their ID are trusted, so a
+	// schema whose identity is in doubt is assigned a fresh ID when it is next
+	// registered. See the README for the operator repair procedure.
+	s, err := scan(ctx, db)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get all subject schemas from store: %w", err)
+		return nil, err
 	}
-	for _, ss := range sss {
-		fp := rabin.Bytes([]byte(ss.Schema.Schema))
-		r.fingerprintIDCache[fp] = ss.ID
+	for _, f := range s.report.Findings {
+		slog.Log(ctx, f.Level, "schema registry integrity finding: stored schemas are inconsistent, see README for the repair procedure",
+			"code", f.Code,
+			"id", f.ID,
+			"subject", f.Subject,
+			"version", f.Version,
+			"detail", f.Message,
+		)
+	}
+	// Never hand out an ID that a subject record already uses, and refuse to
+	// start rather than let the sequence overflow.
+	r.idSequence = max(s.report.Sequence, s.maxID)
+	if r.idSequence > maxSafeSequence {
+		return nil, fmt.Errorf("%s: schema id sequence %d is too close to overflow: %w", ErrCodeSequenceOverflow, r.idSequence, ErrSequenceOverflow)
+	}
+	r.digestIDCache = s.trusted
+	r.digestSubjectVersion = s.subjectVersions
+	for _, ss := range s.records {
 		r.subjectVersionCache[ss.Subject] = append(r.subjectVersionCache[ss.Subject], ss.Version)
 		r.idSubjectSchemaCache[ss.ID] = append(r.idSubjectSchemaCache[ss.ID], sr.SubjectSchema{
 			Subject: ss.Subject,
@@ -93,21 +108,20 @@ func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schem
 	var rb rollback.R
 	defer rb.MustExecute()
 
-	fp := rabin.Bytes([]byte(schema.Schema))
-	id, ok := r.fingerprintIDCache[fp]
-	if !ok {
+	digest := digestSchema(schema)
+	id, ok := r.digestIDCache[digest]
+	newID := !ok
+	if newID {
 		// schema does not exist yet
 		id = r.nextID()
 		rb.AppendPure(r.revertID)
 	} else {
-		// Schema already exists, check if it exists for this subject.
-		// We can be sure there is at most one version for a subject with a given
-		// fingerprint, so we can just return the first one we find.
-		for _, s := range r.idSubjectSchemaCache[id] {
-			if s.Subject == subject {
-				s.Schema = schema // the cache doesn't contain the actual schema
-				return s, nil
-			}
+		// An identical schema (same type, references, metadata, rules and
+		// text, as established by the SHA-256 digest) already exists. Match
+		// this subject's record by digest, not by ID: after a legacy
+		// collision another schema's record can share the ID.
+		if version, ok := r.digestSubjectVersion[digestSubject{digest, subject}]; ok {
+			return sr.SubjectSchema{Subject: subject, Version: version, ID: id, Schema: schema}, nil
 		}
 	}
 
@@ -133,9 +147,13 @@ func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schem
 		defer txn.Discard()
 	}
 
-	err = r.schemaStore.Set(ctx, ss.ID, ss.Schema)
-	if err != nil {
-		return sr.SubjectSchema{}, err
+	// Invariant 6: the schema stored at an ID is immutable. Write it only for a
+	// newly allocated ID; reusing an existing ID must never touch its text.
+	if newID {
+		err = r.schemaStore.Set(ctx, ss.ID, ss.Schema)
+		if err != nil {
+			return sr.SubjectSchema{}, err
+		}
 	}
 	err = r.subjectSchemaStore.Set(ctx, ss.Subject, ss.Version, ss)
 	if err != nil {
@@ -154,7 +172,8 @@ func (r *SchemaRegistry) CreateSchema(ctx context.Context, subject string, schem
 	}
 
 	// update caches
-	r.fingerprintIDCache[fp] = id
+	r.digestIDCache[digest] = id
+	r.digestSubjectVersion[digestSubject{digest, subject}] = ss.Version
 	r.subjectVersionCache[subject] = append(r.subjectVersionCache[subject], ss.Version)
 	r.idSubjectSchemaCache[id] = append(r.idSubjectSchemaCache[id], sr.SubjectSchema{
 		Subject: ss.Subject,

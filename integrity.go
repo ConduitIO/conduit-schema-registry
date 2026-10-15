@@ -57,7 +57,9 @@ func digestSchema(s sr.Schema) schemaDigest {
 	}
 	putInt := func(i int) {
 		var v [8]byte
-		binary.BigEndian.PutUint64(v[:], uint64(int64(i)))
+		// Two's-complement bit pattern of i on purpose: this is hashing framing,
+		// not arithmetic, and changing it would change every digest.
+		binary.BigEndian.PutUint64(v[:], uint64(int64(i))) //nolint:gosec // G115: intentional, see above
 		b.Write(v[:])
 	}
 
@@ -97,7 +99,13 @@ func sortedRefs(in []sr.SchemaReference) []sr.SchemaReference {
 // and its rule set. Two schemas with the same text but different keys do not
 // decode the same way.
 func refsRulesKey(s sr.Schema) string {
-	refs, _ := json.Marshal(sortedRefs(s.References))
+	sorted := sortedRefs(s.References)
+	refs, err := json.Marshal(sorted)
+	if err != nil {
+		// Cannot happen for a slice of strings and ints; fall back to a
+		// deterministic rendering rather than dropping the references.
+		refs = []byte(fmt.Sprintf("%+v", sorted))
+	}
 	return string(refs) + "|" + string(canonicalJSON(s.SchemaRuleSet))
 }
 
@@ -214,13 +222,25 @@ type scanResult struct {
 	maxID int
 }
 
+// scanner accumulates the verified view of the stored state while records are
+// walked. It exists so scan stays small enough to read; it carries no behaviour
+// of its own.
+type scanner struct {
+	res scanResult
+	seq int
+
+	// Per-ID sets, used for the ID-level findings once all records are seen.
+	distinct map[int]map[schemaDigest]struct{}
+	texts    map[int]map[string]struct{}
+	nested   map[int]map[string]struct{}
+}
+
 func scan(ctx context.Context, db database.DB) (scanResult, error) {
 	seq, err := newSequenceStore(db, "schemaid").Get(ctx)
 	if err != nil && !errors.Is(err, database.ErrKeyNotExist) {
 		return scanResult{}, fmt.Errorf("failed to get schema id sequence from store: %w", err)
 	}
 
-	schemas := newSchemaStore(db)
 	records, err := newSubjectSchemaStore(db).GetAll(ctx)
 	if err != nil {
 		return scanResult{}, fmt.Errorf("failed to get all subject schemas from store: %w", err)
@@ -232,100 +252,117 @@ func scan(ctx context.Context, db database.DB) (scanResult, error) {
 		return records[i].Version < records[j].Version
 	})
 
-	res := scanResult{
-		report:  AuditReport{Sequence: seq, SubjectSchemas: len(records)},
-		records: records,
-		trusted: make(map[schemaDigest]int),
-
-		subjectVersions: make(map[digestSubject]int),
-	}
-	add := func(code string, ss sr.SubjectSchema, format string, args ...any) {
-		level := slog.LevelError
-		if code == FindingLegacyIdentityShared {
-			level = slog.LevelWarn
-		}
-		res.report.Findings = append(res.report.Findings, Finding{
-			Code: code, Level: level, ID: ss.ID, Subject: ss.Subject, Version: ss.Version,
-			Message: fmt.Sprintf(format, args...),
-		})
+	sc := &scanner{
+		res: scanResult{
+			report:          AuditReport{Sequence: seq, SubjectSchemas: len(records)},
+			records:         records,
+			trusted:         make(map[schemaDigest]int),
+			subjectVersions: make(map[digestSubject]int),
+		},
+		seq:      seq,
+		distinct: make(map[int]map[schemaDigest]struct{}),
+		texts:    make(map[int]map[string]struct{}),
+		nested:   make(map[int]map[string]struct{}),
 	}
 
-	distinct := make(map[int]map[schemaDigest]struct{})
-	texts := make(map[int]map[string]struct{})
-	nested := make(map[int]map[string]struct{})
+	schemas := newSchemaStore(db)
 	for _, ss := range records {
 		d := digestSchema(ss.Schema)
-		if distinct[ss.ID] == nil {
-			distinct[ss.ID] = make(map[schemaDigest]struct{})
-		}
-		distinct[ss.ID][d] = struct{}{}
-		if texts[ss.ID] == nil {
-			texts[ss.ID] = make(map[string]struct{})
-		}
-		texts[ss.ID][ss.Schema.Schema] = struct{}{}
-		if nested[ss.ID] == nil {
-			nested[ss.ID] = make(map[string]struct{})
-		}
-		nested[ss.ID][refsRulesKey(ss.Schema)] = struct{}{}
-		res.maxID = max(res.maxID, ss.ID)
-
+		sc.track(ss, d)
 		if ss.ID > seq {
-			add(FindingIDAboveSequence, ss, "ID %d is above the ID sequence %d", ss.ID, seq)
+			sc.add(FindingIDAboveSequence, ss, "ID %d is above the ID sequence %d", ss.ID, seq)
 		}
 
 		stored, err := schemas.Get(ctx, ss.ID)
 		switch {
 		case errors.Is(err, database.ErrKeyNotExist):
-			add(FindingMissingSchema, ss, "no schema is stored at ID %d", ss.ID)
+			sc.add(FindingMissingSchema, ss, "no schema is stored at ID %d", ss.ID)
 			continue
 		case err != nil:
 			return scanResult{}, fmt.Errorf("failed to read stored schema %d: %w", ss.ID, err)
 		}
-
-		switch {
-		case digestSchema(stored) == d:
-			if _, ok := res.trusted[d]; !ok {
-				res.trusted[d] = ss.ID
-			}
-			if res.trusted[d] == ss.ID {
-				res.subjectVersions[digestSubject{d, ss.Subject}] = ss.Version
-			}
-		case stored.Schema != ss.Schema.Schema:
-			add(FindingTextMismatch, ss, "subject record text differs from the text stored at ID %d", ss.ID)
-		default:
-			if refsRulesKey(stored) != refsRulesKey(ss.Schema) {
-				add(FindingRefsOrRulesDiffer, ss, "same text, but references or rule set differ from those stored at ID %d", ss.ID)
-			} else {
-				add(FindingLegacyIdentityShared, ss, "same text, but type or metadata differ from those stored at ID %d", ss.ID)
-			}
-		}
+		sc.verify(ss, d, stored)
 	}
 
-	ids := make([]int, 0, len(distinct))
-	for id, ds := range distinct {
+	sc.addIDFindings()
+	return sc.res, nil
+}
+
+func (sc *scanner) add(code string, ss sr.SubjectSchema, format string, args ...any) {
+	level := slog.LevelError
+	if code == FindingLegacyIdentityShared {
+		level = slog.LevelWarn
+	}
+	sc.res.report.Findings = append(sc.res.report.Findings, Finding{
+		Code: code, Level: level, ID: ss.ID, Subject: ss.Subject, Version: ss.Version,
+		Message: fmt.Sprintf(format, args...),
+	})
+}
+
+// track records ss in the per-ID sets and the highest ID seen.
+func (sc *scanner) track(ss sr.SubjectSchema, d schemaDigest) {
+	if sc.distinct[ss.ID] == nil {
+		sc.distinct[ss.ID] = make(map[schemaDigest]struct{})
+		sc.texts[ss.ID] = make(map[string]struct{})
+		sc.nested[ss.ID] = make(map[string]struct{})
+	}
+	sc.distinct[ss.ID][d] = struct{}{}
+	sc.texts[ss.ID][ss.Schema.Schema] = struct{}{}
+	sc.nested[ss.ID][refsRulesKey(ss.Schema)] = struct{}{}
+	sc.res.maxID = max(sc.res.maxID, ss.ID)
+}
+
+// verify compares a subject record with the schema stored at its ID. A record
+// that agrees is trusted; one that does not produces a finding.
+func (sc *scanner) verify(ss sr.SubjectSchema, d schemaDigest, stored sr.Schema) {
+	switch {
+	case digestSchema(stored) == d:
+		if _, ok := sc.res.trusted[d]; !ok {
+			sc.res.trusted[d] = ss.ID
+		}
+		if sc.res.trusted[d] == ss.ID {
+			sc.res.subjectVersions[digestSubject{d, ss.Subject}] = ss.Version
+		}
+	case stored.Schema != ss.Schema.Schema:
+		sc.add(FindingTextMismatch, ss, "subject record text differs from the text stored at ID %d", ss.ID)
+	case refsRulesKey(stored) != refsRulesKey(ss.Schema):
+		sc.add(FindingRefsOrRulesDiffer, ss, "same text, but references or rule set differ from those stored at ID %d", ss.ID)
+	default:
+		sc.add(FindingLegacyIdentityShared, ss, "same text, but type or metadata differ from those stored at ID %d", ss.ID)
+	}
+}
+
+// addIDFindings reports IDs that carry more than one distinct schema.
+func (sc *scanner) addIDFindings() {
+	ids := make([]int, 0, len(sc.distinct))
+	for id, ds := range sc.distinct {
 		if len(ds) > 1 {
 			ids = append(ids, id)
 		}
 	}
 	sort.Ints(ids)
 	for _, id := range ids {
-		f := Finding{
-			Code: FindingMultipleDigests, Level: slog.LevelError, ID: id,
-			Message: fmt.Sprintf("%d distinct schemas are recorded under ID %d", len(distinct[id]), id),
-		}
-		if len(texts[id]) == 1 {
-			// One text, several attributes: the legacy identity gap, not a text replacement.
-			if len(nested[id]) > 1 {
-				f.Code = FindingRefsOrRulesDiffer
-				f.Message = fmt.Sprintf("one schema text is recorded under ID %d with different references or rule sets", id)
-			} else {
-				f.Code, f.Level = FindingLegacyIdentityShared, slog.LevelWarn
-				f.Message = fmt.Sprintf("one schema text is recorded under ID %d with %d different types or metadata", id, len(distinct[id]))
-			}
-		}
-		res.report.Findings = append(res.report.Findings, f)
+		sc.res.report.Findings = append(sc.res.report.Findings, sc.idFinding(id))
 	}
-	return res, nil
+}
+
+func (sc *scanner) idFinding(id int) Finding {
+	f := Finding{
+		Code: FindingMultipleDigests, Level: slog.LevelError, ID: id,
+		Message: fmt.Sprintf("%d distinct schemas are recorded under ID %d", len(sc.distinct[id]), id),
+	}
+	if len(sc.texts[id]) != 1 {
+		return f
+	}
+	// One text, several attributes: not a text replacement.
+	if len(sc.nested[id]) > 1 {
+		f.Code = FindingRefsOrRulesDiffer
+		f.Message = fmt.Sprintf("one schema text is recorded under ID %d with different references or rule sets", id)
+		return f
+	}
+	f.Code, f.Level = FindingLegacyIdentityShared, slog.LevelWarn
+	f.Message = fmt.Sprintf("one schema text is recorded under ID %d with %d different types or metadata", id, len(sc.distinct[id]))
+	return f
 }
 
 // ErrCodeSequenceOverflow is the stable code of the error returned by

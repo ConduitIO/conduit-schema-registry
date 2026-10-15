@@ -84,7 +84,7 @@ func TestCreateSchema_IdentityCoversTypeAndReferences(t *testing.T) {
 	// other entry's type.
 	same, err := reg.CreateSchema(ctx, "a", sr.Schema{Schema: victimAvro, Type: sr.TypeJSON})
 	is.NoErr(err)
-	is.Equal(same.Schema.Type, sr.TypeJSON)
+	is.Equal(same.Type, sr.TypeJSON)
 	is.Equal(same.Version, 2)
 	is.Equal(same.ID, json.ID)
 
